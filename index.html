@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حاسبة تركيبات الأعلاف المتقدمة</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        .ingredient, .constraints {
+            margin-bottom: 15px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        input, select {
+            width: calc(100% - 10px);
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            width: auto;
+            min-width: 200px;
+            padding: 12px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        button:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 3px rgba(0,0,0,0.2);
+        }
+        #result {
+            margin-top: 20px;
+            font-weight: bold;
+            background: #e7f3fe;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 5px;
+            text-align: right;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        @media (max-width: 600px) {
+            input, select, button {
+                font-size: 14px;
+            }
+        }
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 2px 4px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 10px;
+            line-height: 1;
+            min-width: auto;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+        }
+        .delete-btn:hover {
+            background-color: #d32f2f;
+        }
+        #ingredientsTable input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 5px;
+        }
+        .red-btn {
+            background-color: #f44336;
+        }
+        .red-btn:hover {
+            background-color: #d32f2f;
+        }
+        .button-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        @media (max-width: 600px) {
+            button {
+                width: 100%;
+                margin: 10px 0;
+            }
+        }
+        .green-btn {
+            background-color: #4CAF50;
+        }
+        .green-btn:hover {
+            background-color: #45a049;
+        }
+        .centered-result {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .small-btn {
+            padding: 5px 10px;
+            font-size: 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .small-btn:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>حاسبة تركيبات الأعلاف المتقدمة</h1>
+        <h2>جدول خامات الأعلاف</h2>
+        <table id="ingredientsTable">
+            <tr>
+                <th>المكون</th>
+                <th>البروتين (%)</th>
+                <th>الألياف (%)</th>
+                <th>الدهون (%)</th>
+                <th>TDN (%)</th>
+                <th>الطاقة (MJ/kg)</th>
+                <th></th>
+            </tr>
+        </table>
+        <div class="button-container">
+            <button onclick="addTableRow()" class="red-btn">إضافة مكون جديد للجدول</button>
+            <button onclick="saveToTextbox()" class="red-btn">حفظ البيانات كـ XML</button>
+            <button onclick="loadFromTextbox()" class="red-btn">استرداد البيانات من XML</button>
+        </div>
+
+        <div style="display: flex; align-items: center; margin-top: 10px;">
+            <textarea id="xmlData" rows="5" style="flex-grow: 1; margin-right: 10px;" placeholder="أدخل بيانات XML هنا"></textarea>
+            <div style="display: flex; flex-direction: column;">
+                <button onclick="copyToClipboard()" class="small-btn">نسخ إلى الحافظة</button>
+                <button onclick="clearTextbox()" class="small-btn" style="margin-top: 5px;">مسح</button>
+            </div>
+        </div>
+
+        <div id="ingredients"></div>
+        <div class="button-container">
+            <button onclick="addIngredient()" class="green-btn">إضافة مكون إلى التركيبة</button>
+        </div>
+
+        <h2>القيود</h2>
+        <div class="constraints">
+            <input type="number" id="targetProtein" placeholder="نسبة البروتين المطلوبة (%)">
+            <input type="number" id="maxCost" placeholder="الحد الأقصى للتكلفة (للكيلوجرام)">
+            <input type="number" id="totalAmount" placeholder="الكمية الإجمالية المطلوبة (كجم)">
+        </div>
+        <div class="button-container">
+            <button onclick="calculateComposition()">حساب التركيبة</button>
+        </div>
+        <div id="result" class="centered-result"></div>
+    </div>
+
+    <script>
+        let ingredientCount = 0;
+
+        let ingredientsList = [
+            { name: "ذرة صفراء", protein: 8.5, fiber: 2.2, fat: 3.8, tdn: 85, energy: 12.5 },
+            { name: "كسب فول الصويا", protein: 44, fiber: 7, fat: 1.5, tdn: 93, energy: 15.5 },
+            { name: "نخالة القمح", protein: 15, fiber: 11, fat: 4, tdn: 75, energy: 10.5 },
+            { name: "شعير", protein: 11, fiber: 5, fat: 1.9, tdn: 80, energy: 12.0 },
+            { name: "دريس برسيم", protein: 17, fiber: 24, fat: 2.5, tdn: 90, energy: 13.0 },
+            { name: "كسب بذرة القطن", protein: 41, fiber: 13, fat: 2, tdn: 87, energy: 14.0 },
+            { name: "ردة القمح", protein: 14.5, fiber: 10, fat: 3.5, tdn: 74, energy: 9.0 },
+            { name: "جلوتين ذرة", protein: 60, fiber: 1, fat: 2.5, tdn: 95, energy: 16.0 },
+            { name: "مسحوق السمك", protein: 60, fiber: 1, fat: 9, tdn: 90, energy: 18.0 },
+            { name: "كسب جنين الذرة", protein: 23, fiber: 9, fat: 7, tdn: 87, energy: 13.5 },
+            { name: "DDGS", protein: 27, fiber: 7.5, fat: 9, tdn: 85, energy: 14.0 },
+            { name: "كسب صويا 46%", protein: 46, fiber: 3.5, fat: 1.5, tdn: 92, energy: 15.0 },
+            { name: "جلو��وفيد 16%", protein: 16, fiber: 35, fat: 1, tdn: 70, energy: 8.0 },
+            { name: "كسب عباد الشمس 36%", protein: 36, fiber: 18, fat: 1.5, tdn: 80, energy: 12.0 },
+            { name: "قشر الصويا", protein: 12, fiber: 33, fat: 2, tdn: 70, energy: 9.5 },
+            { name: "رجيع كون الأرز", protein: 13, fiber: 12, fat: 13, tdn: 75, energy: 10.0 },
+            { name: "كسب البنجر", protein: 9, fiber: 18, fat: 0.5, tdn: 65, energy: 7.0 },
+            { name: "المولاس", protein: 3, fiber: 0, fat: 0.1, tdn: 75, energy: 6.0 },
+            { name: "قشر السوداني 6%", protein: 6, fiber: 50, fat: 1, tdn: 60, energy: 5.0 }
+        ];
+
+        function fillIngredientsTable() {
+            const table = document.getElementById("ingredientsTable");
+            ingredientsList.forEach((ing, index) => {
+                const row = table.insertRow();
+                const cells = [
+                    ing.name,
+                    ing.protein,
+                    ing.fiber,
+                    ing.fat,
+                    ing.tdn,
+                    ing.energy
+                ];
+                cells.forEach((value, cellIndex) => {
+                    const cell = row.insertCell();
+                    const input = document.createElement("input");
+                    input.type = cellIndex === 0 ? "text" : "number";
+                    input.value = value;
+                    input.step = "0.1";
+                    cell.appendChild(input);
+                });
+                // Add delete button
+                const deleteCell = row.insertCell();
+                const deleteBtn = document.createElement("button");
+                deleteBtn.innerText = "×";
+                deleteBtn.className = "delete-btn";
+                deleteBtn.onclick = function() { deleteTableRow(this); };
+                deleteCell.appendChild(deleteBtn);
+            });
+        }
+
+        function addTableRow() {
+            const table = document.getElementById("ingredientsTable");
+            const newRow = table.insertRow();
+            for (let i = 0; i < 6; i++) {
+                const cell = newRow.insertCell(i);
+                const input = document.createElement("input");
+                input.type = i === 0 ? "text" : "number";
+                input.step = "0.1";
+                cell.appendChild(input);
+            }
+            // Add delete button to new row
+            const deleteCell = newRow.insertCell();
+            const deleteBtn = document.createElement("button");
+            deleteBtn.innerText = "×";
+            deleteBtn.className = "delete-btn";
+            deleteBtn.onclick = function() { deleteTableRow(this); };
+            deleteCell.appendChild(deleteBtn);
+        }
+
+        function deleteTableRow(btn) {
+            const row = btn.parentNode.parentNode;
+            row.parentNode.removeChild(row);
+        }
+
+        function saveToTextbox() {
+            const table = document.getElementById("ingredientsTable");
+            const rows = table.rows;
+            let xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n<ingredients>\n';
+
+            for (let i = 1; i < rows.length; i++) {
+                const cells = rows[i].cells;
+                xmlContent += '  <ingredient>\n';
+                xmlContent += `    <name>${cells[0].firstChild.value}</name>\n`;
+                xmlContent += `    <protein>${cells[1].firstChild.value}</protein>\n`;
+                xmlContent += `    <fiber>${cells[2].firstChild.value}</fiber>\n`;
+                xmlContent += `    <fat>${cells[3].firstChild.value}</fat>\n`;
+                xmlContent += `    <tdn>${cells[4].firstChild.value}</tdn>\n`;
+                xmlContent += `    <energy>${cells[5].firstChild.value}</energy>\n`;
+                xmlContent += '  </ingredient>\n';
+            }
+
+            xmlContent += '</ingredients>';
+
+            document.getElementById('xmlData').value = xmlContent;
+            alert("تم حفظ البيانات كـ XML في مربع النص");
+        }
+
+        function loadFromTextbox() {
+            const xmlText = document.getElementById('xmlData').value.trim();
+            if (xmlText === '') {
+                alert("مربع النص فارغ. الرجاء إدخال بيانات XML صالحة.");
+                return;
+            }
+            try {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+                const ingredients = xmlDoc.getElementsByTagName("ingredient");
+                
+                if (ingredients.length === 0) {
+                    alert("لم يتم العثور على مكونات صالحة في البيانات المدخلة.");
+                    return;
+                }
+
+                // Clear existing table rows except header
+                const table = document.getElementById("ingredientsTable");
+                while (table.rows.length > 1) {
+                    table.deleteRow(1);
+                }
+
+                // Add imported ingredients to the table
+                for (let i = 0; i < ingredients.length; i++) {
+                    const row = table.insertRow();
+                    const fields = ["name", "protein", "fiber", "fat", "tdn", "energy"];
+                    fields.forEach(field => {
+                        const cell = row.insertCell();
+                        const input = document.createElement("input");
+                        input.type = field === "name" ? "text" : "number";
+                        input.value = ingredients[i].getElementsByTagName(field)[0].textContent;
+                        input.step = "0.1";
+                        cell.appendChild(input);
+                    });
+                    // Add delete button
+                    const deleteCell = row.insertCell();
+                    const deleteBtn = document.createElement("button");
+                    deleteBtn.innerText = "×";
+                    deleteBtn.className = "delete-btn";
+                    deleteBtn.onclick = function() { deleteTableRow(this); };
+                    deleteCell.appendChild(deleteBtn);
+                }
+                alert("تم استرداد البيانات بنجاح!");
+            } catch (error) {
+                alert("حدث خطأ أثناء قراءة البيانات: " + error.message);
+            }
+        }
+
+        function copyToClipboard() {
+            const textarea = document.getElementById('xmlData');
+            textarea.select();
+            textarea.setSelectionRange(0, 99999); // For mobile devices
+            
+            try {
+                const successful = document.execCommand('copy');
+                const msg = successful ? 'تم النسخ إلى الحافظة بنجاح' : 'فشل النسخ إلى الحافظة';
+                alert(msg);
+            } catch (err) {
+                alert('فشل النسخ إلى الحافظة: ' + err);
+            }
+        }
+
+        function clearTextbox() {
+            document.getElementById('xmlData').value = '';
+        }
+
+        function addIngredient(name = "", cost = "", maxAmount = "") {
+            updateIngredientsList(); // Add this line to update the ingredients list
+            ingredientCount++;
+            const div = document.createElement('div');
+            div.className = 'ingredient';
+            div.innerHTML = `
+                <h3>المكون ${ingredientCount}</h3>
+                <button class="delete-btn" onclick="deleteIngredient(this)">حذف</button>
+                <select id="name${ingredientCount}" onchange="updateNutrients(this)">
+                    <option value="">اختر المكون</option>
+                    ${ingredientsList.map(ing => `<option value="${ing.name}" ${ing.name === name ? 'selected' : ''}>${ing.name}</option>`).join('')}
+                </select>
+                <input type="number" id="protein${ingredientCount}" placeholder="نسبة البروتين (%)" readonly>
+                <input type="number" id="fiber${ingredientCount}" placeholder="نسبة الألياف (%)" readonly>
+                <input type="number" id="fat${ingredientCount}" placeholder="نسبة الدهون (%)" readonly>
+                <input type="number" id="tdn${ingredientCount}" placeholder="TDN (%)" readonly>
+                <input type="number" id="energy${ingredientCount}" placeholder="الطاقة (MJ/kg)" readonly>
+                <input type="number" id="cost${ingredientCount}" placeholder="السعر (للكيلوجرام)" value="${cost}">
+                <input type="number" id="maxAmount${ingredientCount}" placeholder="الحد الأقصى للكمية (كجم)" value="${maxAmount}">
+            `;
+            document.getElementById('ingredients').appendChild(div);
+            if (name) {
+                updateNutrients(div.querySelector(`#name${ingredientCount}`));
+            }
+        }
+
+        function deleteIngredient(btn) {
+            const div = btn.closest('.ingredient');
+            div.remove();
+            // Reorder remaining ingredients
+            const ingredients = document.getElementById('ingredients').children;
+            for (let i = 0; i < ingredients.length; i++) {
+                ingredients[i].querySelector('h3').innerText = `المكون ${i + 1}`;
+            }
+            ingredientCount = ingredients.length;
+        }
+
+        function updateNutrients(select) {
+            const div = select.closest('.ingredient');
+            const selectedName = select.value;
+            const ingredient = ingredientsList.find(ing => ing.name === selectedName);
+            if (ingredient) {
+                div.querySelector('input[placeholder="نسبة البروتين (%)"]').value = ingredient.protein;
+                div.querySelector('input[placeholder="نسبة الألياف (%)"]').value = ingredient.fiber;
+                div.querySelector('input[placeholder="نسبة الدهون (%)"]').value = ingredient.fat;
+                div.querySelector('input[placeholder="TDN (%)"]').value = ingredient.tdn;
+                div.querySelector('input[placeholder="الطاقة (MJ/kg)"]').value = ingredient.energy;
+            }
+        }
+
+        function calculateComposition() {
+            const targetProtein = parseFloat(document.getElementById('targetProtein').value) || 0;
+            const maxCost = parseFloat(document.getElementById('maxCost').value) || Infinity;
+            const totalAmount = parseFloat(document.getElementById('totalAmount').value) || 100;
+
+            let ingredients = [];
+            for (let i = 1; i <= ingredientCount; i++) {
+                const name = document.getElementById(`name${i}`).value;
+                const cost = parseFloat(document.getElementById(`cost${i}`).value) || 0;
+                const maxAmount = parseFloat(document.getElementById(`maxAmount${i}`).value) || totalAmount;
+                const ingredient = ingredientsList.find(ing => ing.name === name);
+                if (ingredient && cost > 0) {
+                    ingredients.push({
+                        ...ingredient,
+                        cost: cost,
+                        maxAmount: maxAmount
+                    });
+                }
+            }
+
+            if (ingredients.length === 0) {
+                document.getElementById('result').innerHTML = "<p>الرجاء إدخال مكونات صالحة مع أسعارها.</p>";
+                return;
+            }
+
+            // Sort ingredients by protein content (ascending)
+            ingredients.sort((a, b) => a.protein - b.protein);
+
+            let composition = new Array(ingredients.length).fill(0);
+            let totalCost = 0;
+            let currentProtein = 0;
+            let remainingAmount = totalAmount;
+
+            // Initial distribution
+            for (let i = 0; i < ingredients.length && remainingAmount > 0; i++) {
+                let amount = Math.min(remainingAmount, ingredients[i].maxAmount);
+                composition[i] = amount;
+                remainingAmount -= amount;
+                totalCost += amount * ingredients[i].cost;
+                currentProtein += amount * ingredients[i].protein;
+            }
+
+            // Adjust composition to meet target protein and cost constraints
+            const maxIterations = 50000; // زيادة عدد التكرارات
+            let iterations = 0;
+            const costWeight = 15; // زيادة وزن التكلفة
+            const proteinWeight = 10; // إضافة وزن للبروتين
+            const tolerance = 0.001; // تقليل التسامح للحصول على نتائج أكثر دقة
+
+            while ((Math.abs((currentProtein / totalAmount) - targetProtein) > tolerance || totalCost / totalAmount > maxCost) && iterations < maxIterations) {
+                let bestAdjustment = { diff: Infinity, i: -1, j: -1, amount: 0 };
+
+                for (let i = 0; i < ingredients.length; i++) {
+                    for (let j = 0; j < ingredients.length; j++) {
+                        if (i !== j) {
+                            let adjustmentAmount = 0.01; // تقليل حجم التعديل للحصول على نتائج أكثر دقة
+                            if (composition[i] < ingredients[i].maxAmount && composition[j] > adjustmentAmount) {
+                                let newProtein = currentProtein + adjustmentAmount * (ingredients[i].protein - ingredients[j].protein);
+                                let newCost = totalCost + adjustmentAmount * (ingredients[i].cost - ingredients[j].cost);
+                                let proteinDiff = Math.abs((newProtein / totalAmount) - targetProtein);
+                                let costDiff = Math.max(0, (newCost / totalAmount) - maxCost);
+                                let totalDiff = proteinDiff * proteinWeight + costDiff * costWeight;
+                                if (totalDiff < bestAdjustment.diff) {
+                                    bestAdjustment = { diff: totalDiff, i: i, j: j, amount: adjustmentAmount };
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (bestAdjustment.i !== -1) {
+                    composition[bestAdjustment.i] += bestAdjustment.amount;
+                    composition[bestAdjustment.j] -= bestAdjustment.amount;
+                    currentProtein += bestAdjustment.amount * (ingredients[bestAdjustment.i].protein - ingredients[bestAdjustment.j].protein);
+                    totalCost += bestAdjustment.amount * (ingredients[bestAdjustment.i].cost - ingredients[bestAdjustment.j].cost);
+                } else {
+                    break; // لم يعد هناك تحسينات ممكنة
+                }
+
+                iterations++;
+            }
+
+            // Ensure total amount is correct
+            let actualTotal = composition.reduce((sum, amount) => sum + amount, 0);
+            if (Math.abs(actualTotal - totalAmount) > 0.01) {
+                let scale = totalAmount / actualTotal;
+                composition = composition.map(amount => amount * scale);
+            }
+
+            // Recalculate final values
+            totalCost = 0;
+            currentProtein = 0;
+            let totalFiber = 0;
+            let totalFat = 0;
+            let totalTDN = 0;
+            let totalEnergy = 0;
+            let result = "<h2>التركيبة المحسوبة:</h2>";
+
+            for (let i = 0; i < ingredients.length; i++) {
+                const amount = Math.max(0, composition[i]); // Ensure non-negative amounts
+                if (amount > 0.01) {  // Ignore very small amounts
+                    result += `<p>${ingredients[i].name}: ${amount.toFixed(2)} كجم</p>`;
+                    totalCost += amount * ingredients[i].cost;
+                    currentProtein += amount * ingredients[i].protein;
+                    totalFiber += amount * ingredients[i].fiber;
+                    totalFat += amount * ingredients[i].fat;
+                    totalTDN += amount * ingredients[i].tdn;
+                    totalEnergy += amount * ingredients[i].energy;
+                }
+            }
+
+            result += `<p>إجمالي التكلفة: ${totalCost.toFixed(2)}</p>`;
+            result += `<p>نسبة البروتين: ${(currentProtein / totalAmount).toFixed(2)}%</p>`;
+            result += `<p>نسبة الألياف: ${(totalFiber / totalAmount).toFixed(2)}%</p>`;
+            result += `<p>نسبة الدهون: ${(totalFat / totalAmount).toFixed(2)}%</p>`;
+            result += `<p>إجمالي TDN: ${(totalTDN / totalAmount).toFixed(2)}%</p>`;
+            result += `<p>إجمالي الطاقة: ${(totalEnergy / totalAmount).toFixed(2)} MJ/kg</p>`;
+
+            // تعديل الرسالة النهائية لتكون أكثر دقة
+            if (totalCost / totalAmount > maxCost) {
+                result += "<p style='color: red;'>تحذير: تجاوزت التكلفة الحد الأقصى المحدد بقليل. يمكنك زيادة الحد الأقصى للتكلفة أو تعديل المكونات.</p>";
+            }
+            if (Math.abs((currentProtein / totalAmount) - targetProtein) > 0.1) {
+                result += "<p style='color: orange;'>ملاحظة: لم يتم الوصول إلى نسبة البروتين المستهدفة بدقة تامة. النسبة الحالية: " + (currentProtein / totalAmount).toFixed(2) + "%</p>";
+            }
+
+            document.getElementById('result').innerHTML = result;
+        }
+
+        // Add this new function to update the ingredients list
+        function updateIngredientsList() {
+            const table = document.getElementById("ingredientsTable");
+            ingredientsList = [];
+            for (let i = 1; i < table.rows.length; i++) {
+                const cells = table.rows[i].cells;
+                ingredientsList.push({
+                    name: cells[0].firstChild.value,
+                    protein: parseFloat(cells[1].firstChild.value),
+                    fiber: parseFloat(cells[2].firstChild.value),
+                    fat: parseFloat(cells[3].firstChild.value),
+                    tdn: parseFloat(cells[4].firstChild.value),
+                    energy: parseFloat(cells[5].firstChild.value)
+                });
+            }
+        }
+
+        // Load table on page load
+        window.onload = function() {
+            fillIngredientsTable();
+            updateIngredientsList();
+        };
+    </script>
+</body>
+</html>
