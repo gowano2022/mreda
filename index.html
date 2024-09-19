@@ -187,13 +187,18 @@
         <h2>القيود</h2>
         <div class="constraints">
             <input type="number" id="targetProtein" placeholder="نسبة البروتين المطلوبة (%)">
+            <input type="number" id="targetFiber" placeholder="نسبة الألياف المطلوبة (%)">
+            <input type="number" id="targetFat" placeholder="نسبة الدهون المطلوبة (%)">
+            <input type="number" id="targetTDN" placeholder="نسبة TDN المطلوبة (%)">
+            <input type="number" id="targetEnergy" placeholder="الطاقة المطلوبة (MJ/kg)">
             <input type="number" id="maxCost" placeholder="الحد الأقصى للتكلفة (للكيلوجرام)">
             <input type="number" id="totalAmount" placeholder="الكمية الإجمالية المطلوبة (كجم)">
+            <input type="number" id="numberOfFormulations" placeholder="عدد التركيبات المطلوبة" value="3">
         </div>
         <div class="button-container">
-            <button onclick="calculateComposition()">حساب التركيبة</button>
+            <button onclick="calculateMultipleCompositions()">حساب التركيبات</button>
         </div>
-        <div id="result" class="centered-result"></div>
+        <div id="results" class="centered-result"></div>
     </div>
 
     <script>
@@ -395,29 +400,50 @@
             }
         }
 
-        function calculateComposition() {
+        function calculateMultipleCompositions() {
             const targetProtein = parseFloat(document.getElementById('targetProtein').value) || 0;
+            const targetFiber = parseFloat(document.getElementById('targetFiber').value) || 0;
+            const targetFat = parseFloat(document.getElementById('targetFat').value) || 0;
+            const targetTDN = parseFloat(document.getElementById('targetTDN').value) || 0;
+            const targetEnergy = parseFloat(document.getElementById('targetEnergy').value) || 0;
             const maxCost = parseFloat(document.getElementById('maxCost').value) || Infinity;
             const totalAmount = parseFloat(document.getElementById('totalAmount').value) || 100;
+            const numberOfFormulations = parseInt(document.getElementById('numberOfFormulations').value) || 3;
 
+            let allResults = [];
+
+            for (let formulation = 0; formulation < numberOfFormulations; formulation++) {
+                let result = calculateSingleComposition(targetProtein, targetFiber, targetFat, targetTDN, targetEnergy, maxCost, totalAmount);
+                if (result) {
+                    allResults.push(result);
+                }
+            }
+
+            displayResults(allResults, totalAmount);
+        }
+
+        function calculateSingleComposition(targetProtein, targetFiber, targetFat, targetTDN, targetEnergy, maxCost, totalAmount) {
             let ingredients = [];
             for (let i = 1; i <= ingredientCount; i++) {
-                const name = document.getElementById(`name${i}`).value;
-                const cost = parseFloat(document.getElementById(`cost${i}`).value) || 0;
-                const maxAmount = parseFloat(document.getElementById(`maxAmount${i}`).value) || totalAmount;
-                const ingredient = ingredientsList.find(ing => ing.name === name);
-                if (ingredient && cost > 0) {
-                    ingredients.push({
-                        ...ingredient,
-                        cost: cost,
-                        maxAmount: maxAmount
-                    });
+                const nameElement = document.getElementById(`name${i}`);
+                if (nameElement) {
+                    const name = nameElement.value;
+                    const cost = parseFloat(document.getElementById(`cost${i}`).value) || 0;
+                    const maxAmount = parseFloat(document.getElementById(`maxAmount${i}`).value) || totalAmount;
+                    const ingredient = ingredientsList.find(ing => ing.name === name);
+                    if (ingredient && cost > 0) {
+                        ingredients.push({
+                            ...ingredient,
+                            cost: cost,
+                            maxAmount: maxAmount
+                        });
+                    }
                 }
             }
 
             if (ingredients.length === 0) {
-                document.getElementById('result').innerHTML = "<p>الرجاء إدخال مكونات صالحة مع أسعارها.</p>";
-                return;
+                document.getElementById('results').innerHTML = "<p>الرجاء إدخال مكونات صالحة مع أسعارها.</p>";
+                return null;
             }
 
             // Sort ingredients by protein content (ascending)
@@ -426,6 +452,10 @@
             let composition = new Array(ingredients.length).fill(0);
             let totalCost = 0;
             let currentProtein = 0;
+            let totalFiber = 0;
+            let totalFat = 0;
+            let totalTDN = 0;
+            let totalEnergy = 0;
             let remainingAmount = totalAmount;
 
             // Initial distribution
@@ -435,6 +465,10 @@
                 remainingAmount -= amount;
                 totalCost += amount * ingredients[i].cost;
                 currentProtein += amount * ingredients[i].protein;
+                totalFiber += amount * ingredients[i].fiber;
+                totalFat += amount * ingredients[i].fat;
+                totalTDN += amount * ingredients[i].tdn;
+                totalEnergy += amount * ingredients[i].energy;
             }
 
             // Adjust composition to meet target protein and cost constraints
@@ -442,6 +476,10 @@
             let iterations = 0;
             const costWeight = 15;
             const proteinWeight = 10;
+            const fiberWeight = 5;
+            const fatWeight = 5;
+            const tdnWeight = 5;
+            const energyWeight = 5;
             const tolerance = 0.001;
 
             while ((Math.abs((currentProtein / totalAmount) - targetProtein) > tolerance || totalCost / totalAmount > maxCost) && iterations < maxIterations) {
@@ -454,9 +492,17 @@
                             if (composition[i] < ingredients[i].maxAmount && composition[j] > adjustmentAmount) {
                                 let newProtein = currentProtein + adjustmentAmount * (ingredients[i].protein - ingredients[j].protein);
                                 let newCost = totalCost + adjustmentAmount * (ingredients[i].cost - ingredients[j].cost);
+                                let newFiber = totalFiber + adjustmentAmount * (ingredients[i].fiber - ingredients[j].fiber);
+                                let newFat = totalFat + adjustmentAmount * (ingredients[i].fat - ingredients[j].fat);
+                                let newTDN = totalTDN + adjustmentAmount * (ingredients[i].tdn - ingredients[j].tdn);
+                                let newEnergy = totalEnergy + adjustmentAmount * (ingredients[i].energy - ingredients[j].energy);
                                 let proteinDiff = Math.abs((newProtein / totalAmount) - targetProtein);
                                 let costDiff = Math.max(0, (newCost / totalAmount) - maxCost);
-                                let totalDiff = proteinDiff * proteinWeight + costDiff * costWeight;
+                                let fiberDiff = Math.abs((newFiber / totalAmount) - targetFiber);
+                                let fatDiff = Math.abs((newFat / totalAmount) - targetFat);
+                                let tdnDiff = Math.abs((newTDN / totalAmount) - targetTDN);
+                                let energyDiff = Math.abs((newEnergy / totalAmount) - targetEnergy);
+                                let totalDiff = proteinDiff * proteinWeight + costDiff * costWeight + fiberDiff * fiberWeight + fatDiff * fatWeight + tdnDiff * tdnWeight + energyDiff * energyWeight;
                                 if (totalDiff < bestAdjustment.diff) {
                                     bestAdjustment = { diff: totalDiff, i: i, j: j, amount: adjustmentAmount };
                                 }
@@ -470,6 +516,10 @@
                     composition[bestAdjustment.j] -= bestAdjustment.amount;
                     currentProtein += bestAdjustment.amount * (ingredients[bestAdjustment.i].protein - ingredients[bestAdjustment.j].protein);
                     totalCost += bestAdjustment.amount * (ingredients[bestAdjustment.i].cost - ingredients[bestAdjustment.j].cost);
+                    totalFiber += bestAdjustment.amount * (ingredients[bestAdjustment.i].fiber - ingredients[bestAdjustment.j].fiber);
+                    totalFat += bestAdjustment.amount * (ingredients[bestAdjustment.i].fat - ingredients[bestAdjustment.j].fat);
+                    totalTDN += bestAdjustment.amount * (ingredients[bestAdjustment.i].tdn - ingredients[bestAdjustment.j].tdn);
+                    totalEnergy += bestAdjustment.amount * (ingredients[bestAdjustment.i].energy - ingredients[bestAdjustment.j].energy);
                 } else {
                     break; // No more improvements possible
                 }
@@ -487,16 +537,14 @@
             // Recalculate final values
             totalCost = 0;
             currentProtein = 0;
-            let totalFiber = 0;
-            let totalFat = 0;
-            let totalTDN = 0;
-            let totalEnergy = 0;
-            let result = "<h2>التركيبة المحسوبة:</h2>";
+            totalFiber = 0;
+            totalFat = 0;
+            totalTDN = 0;
+            totalEnergy = 0;
 
             for (let i = 0; i < ingredients.length; i++) {
                 const amount = Math.max(0, composition[i]); // Ensure non-negative amounts
                 if (amount > 0.01) {  // Ignore very small amounts
-                    result += `<p>${ingredients[i].name}: ${amount.toFixed(2)} كجم</p>`;
                     totalCost += amount * ingredients[i].cost;
                     currentProtein += amount * ingredients[i].protein;
                     totalFiber += amount * ingredients[i].fiber;
@@ -506,21 +554,47 @@
                 }
             }
 
-            result += `<p>إجمالي التكلفة: ${totalCost.toFixed(2)}</p>`;
-            result += `<p>نسبة البروتين: ${(currentProtein / totalAmount).toFixed(2)}%</p>`;
-            result += `<p>نسبة الألياف: ${(totalFiber / totalAmount).toFixed(2)}%</p>`;
-            result += `<p>نسبة الدهون: ${(totalFat / totalAmount).toFixed(2)}%</p>`;
-            result += `<p>إجمالي TDN: ${(totalTDN / totalAmount).toFixed(2)}%</p>`;
-            result += `<p>إجمالي الطاقة: ${(totalEnergy / totalAmount).toFixed(2)} MJ/kg</p>`;
+            // Return the result object
+            return {
+                composition: composition,
+                totalCost: totalCost,
+                currentProtein: currentProtein,
+                totalFiber: totalFiber,
+                totalFat: totalFat,
+                totalTDN: totalTDN,
+                totalEnergy: totalEnergy
+            };
+        }
 
-            if (totalCost / totalAmount > maxCost) {
-                result += "<p style='color: red;'>تحذير: تجاوزت التكلفة الحد الأقصى المحدد بقليل. يمكنك زيادة الحد الأقصى للتكلفة أو تعديل المكونات.</p>";
-            }
-            if (Math.abs((currentProtein / totalAmount) - targetProtein) > 0.1) {
-                result += "<p style='color: orange;'>ملاحظة: لم يتم الوصول إلى نسبة البروتين المستهدفة بدقة تامة. النسبة الحالية: " + (currentProtein / totalAmount).toFixed(2) + "%</p>";
+        function displayResults(allResults, totalAmount) {
+            let resultsHTML = "<h2>التركيبات المحسوبة:</h2>";
+
+            if (allResults.length === 0) {
+                resultsHTML += "<p>لم يتم العثور على تركيبات صالحة. الرجاء التحقق من المدخلات والقيود.</p>";
+            } else {
+                allResults.forEach((result, index) => {
+                    resultsHTML += `<h3>التركيبة ${index + 1}:</h3>`;
+                    resultsHTML += "<table><tr><th>المكون</th><th>الكمية (كجم)</th></tr>";
+                    
+                    for (let i = 0; i < result.composition.length; i++) {
+                        const amount = Math.max(0, result.composition[i]);
+                        if (amount > 0.01) {
+                            resultsHTML += `<tr><td>${ingredientsList[i].name}</td><td>${amount.toFixed(2)}</td></tr>`;
+                        }
+                    }
+                    
+                    resultsHTML += "</table>";
+                    resultsHTML += `<p>إجمالي التكلفة: ${result.totalCost.toFixed(2)}</p>`;
+                    resultsHTML += `<p>نسبة البروتين: ${(result.currentProtein / totalAmount).toFixed(2)}%</p>`;
+                    resultsHTML += `<p>نسبة الألياف: ${(result.totalFiber / totalAmount).toFixed(2)}%</p>`;
+                    resultsHTML += `<p>نسبة الدهون: ${(result.totalFat / totalAmount).toFixed(2)}%</p>`;
+                    resultsHTML += `<p>إجمالي TDN: ${(result.totalTDN / totalAmount).toFixed(2)}%</p>`;
+                    resultsHTML += `<p>إجمالي الطاقة: ${(result.totalEnergy / totalAmount).toFixed(2)} MJ/kg</p>`;
+                    resultsHTML += "<hr>";
+                });
             }
 
-            document.getElementById('result').innerHTML = result;
+            document.getElementById('results').innerHTML = resultsHTML;
         }
 
         // Add this new function to update the ingredients list
